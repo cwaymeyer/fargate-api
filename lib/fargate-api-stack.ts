@@ -1,19 +1,28 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
-import { Construct } from 'constructs';
+import {
+  aws_ec2 as ec2,
+  aws_ecs as ecs,
+  aws_ecs_patterns as ecs_patterns,
+  Stack,
+  StackProps,
+} from "aws-cdk-lib";
+import { Construct } from "constructs";
 
 export class FargateApiStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const queue = new sqs.Queue(this, 'FargateApiQueue', {
-      visibilityTimeout: Duration.seconds(300)
-    });
+    const vpc = new ec2.Vpc(this, "myAPI", { maxAzs: 2 });
+    const cluster = new ecs.Cluster(this, "Cluster", { vpc });
 
-    const topic = new sns.Topic(this, 'FargateApiTopic');
-
-    topic.addSubscription(new subs.SqsSubscription(queue));
+    new ecs_patterns.ApplicationLoadBalancedFargateService(
+      this,
+      "FargateService",
+      {
+        cluster,
+        taskImageOptions: {
+          image: ecs.ContainerImage.fromAsset("./src"),
+        },
+      }
+    );
   }
 }
